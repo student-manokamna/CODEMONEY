@@ -11,13 +11,13 @@ import ContributionGraph from "@/module/dashboard/components/contribution-graph"
 const MainPage = () => {
     //  query dashboard data
     const {data: dash, isLoading}= useQuery({
-        queryKey: ['dashboardData'],
+        queryKey: ['dashboard-stats'],
         queryFn: async()=> await getDashboardData(),
         refetchOnWindowFocus: false,
     })
     // query monthly activity data
     const {data: activityData, isLoading: activityLoading}= useQuery({
-        queryKey: ['monthlyActivity'],
+        queryKey: ['monthly-activity'],
         queryFn: async()=> await getMonthlyActivity(),
         refetchOnWindowFocus: false,
     })

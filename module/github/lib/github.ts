@@ -2,6 +2,7 @@ import { Octokit } from "octokit";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { headers } from "next/headers";
+import { de } from "date-fns/locale";
 
 /**
  * Get GitHub access token of the currently logged-in user
@@ -11,6 +12,7 @@ export const getGithubToken = async () => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
+
 
   // If user is not logged in
   if (!session?.user) {
@@ -33,6 +35,7 @@ export const getGithubToken = async () => {
   // Return GitHub access token
   return account.accessToken;
 };
+
 
 /**
  * Fetch GitHub contribution calendar using GraphQL
@@ -156,4 +159,103 @@ export const deleteWebhook = async (owner: string, repo: string) => {
     }
 
    
+}
+
+export const getRepoFileContents = async (
+  token: string,
+  owner: string,
+  repo: string,
+  path: string = ""
+): Promise<{ path: string; content: string }[]>  => {
+  const octokit = new Octokit({ auth: token });
+
+  const { data } = await octokit.rest.repos.getContent({
+    owner,
+    repo,
+    path
+  });
+
+  // if it is a FILE
+  if (!Array.isArray(data)) {
+    if(data.type === "file" && data.content){ 
+    return [{
+      path: data.path,
+      content: Buffer.from(data.content, "base64").toString("utf-8")
+    }];
+  }
+
+  return [];
+}
+let files: { path: string; content: string }[] = [];
+
+  // if it is a DIRECTORY
+  for (const item of data) {
+    if (item.type === "file" && item.content) {
+      const {data: fileData} = await octokit.rest.repos.getContent({
+        owner,
+        repo, 
+        path: item.path
+      });
+
+      if (!Array.isArray(fileData) && fileData.type === "file" && fileData.content) {
+        if(!item.path.match(/\.(png|jpg|jpeg|gif|svg|ico|pdf|zip|docx?|xlsx?|pptx?|mp3|mp4|mov|avi|wmv|flv|mkv)$/i)){
+          files.push({
+            path: item.path,
+            content: Buffer.from(fileData.content, "base64").toString("utf-8")
+          });
+        }
+      }
+    }
+    else if (item.type === "dir") {
+      const subDirFiles = await getRepoFileContents(
+        token,
+        owner,
+        repo,
+        item.path
+      );
+      files = files.concat(subDirFiles);
+    }
+  }
+
+  return files;
+};
+
+export async function getPullRequestDiff(token:string, owner:string, repo:string, prNumber:number){
+  const octokit= new Octokit({ auth: token });
+  const {data:pr}= await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber
+  });
+  
+  const { data: diff } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber,
+    mediaType: {
+      format: "diff"
+    }
+  });
+  return {
+    diff: diff as unknown as string,
+    title: pr.title,
+    description: pr.body || ""
+  }
+}  
+export async function postReviewComment(
+  token:string,
+  owner:string,
+  repo:string,
+  prNumber:number,
+  review:string
+)
+{
+const octokit = new Octokit({auth:token});
+
+await octokit.rest.issues.createComment({
+  owner,
+  repo,
+  issue_number:prNumber,
+  body: `## 🤖 AI Code Review\n\n${review}\n\n---\n*Powered by CodeRabbit Clone*`,
+})
 }

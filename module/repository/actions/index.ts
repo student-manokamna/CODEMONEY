@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 
 import {createWebhook, getRepositories} from "@/module/github/lib/github"
+import { inngest } from "@/inngest/client"
 
 export const fetchUserRepositories = async(page= 1, perPage=10)=>{
 const session= await auth.api.getSession({
@@ -48,6 +49,20 @@ export async function connectRepository(owner: string, repo: string, githubId: n
     }
     //  todo: increment repository count for usage tracking
     //  todo: trigger repositry indexing for rag(fire and forget)
+    try{
+        await inngest.send({
+            name:"repository.connected",
+            data:{
+                owner,
+                repo,
+                userId: session.user.id,
+    }
+        })
+    }
+    catch(error){
+        console.error("Error sending repository.connected event to inngest:", error)
+    }
+    // so now create a function "repository.connected"→ inside ingest fucntions→ index.ts
     return webhook
     
 }  

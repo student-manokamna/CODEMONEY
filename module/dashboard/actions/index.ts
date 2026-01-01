@@ -187,7 +187,7 @@ if (!calendar) {
             date: day.date,
             count: day.contributionCount,
             level:Math.min(4, Math.floor(day.contributionCount / 3)) // level from 0 to 4
-        })));
+        }))); 
         return {
             contributions,
             totalContributions: calendar.totalContributions
